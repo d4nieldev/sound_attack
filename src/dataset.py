@@ -4,6 +4,8 @@ import soundfile as sf
 from scipy.signal import fftconvolve, resample_poly
 from pathlib import Path
 from tqdm import tqdm
+from collections import defaultdict
+
 
 def to_mono(x: np.ndarray) -> np.ndarray:
     # soundfile returns shape (N,) for mono or (N, C) for multi-channel
@@ -21,24 +23,43 @@ def normalize_audio(x: np.ndarray, peak: float = 0.99) -> np.ndarray:
 target_snr_db = 30  # Signal-to-Noise Ratio in dB: higher = quieter noise
 random_inject = False  # If True: inject signal randomly in noise; If False: signal starts at beginning
 min_start_time = 0.4  # Minimum time (in seconds) from start before signal can appear (only for random_inject)
-rooms_to_take = [
-    'air_type1'
-]
-os.makedirs("output", exist_ok=True)
+
 # ---- paths ----
 windows_wavs = list(Path("data/sounds").glob("*.wav"))
 rir_wavs = list(Path("data/RIRS_NOISES/real_rirs_isotropic_noises").glob("*.wav"))
 noise_wavs = list(Path("data/background").glob("*.wav"))
 
-total = len(windows_wavs) * len(rir_wavs) * len(noise_wavs)
+windows_sounds_to_take = [
+    'chimes.wav',
+    'chord.wav',
+    'Windows Logon.wav',
+    'Windows Error.wav',
+    'Windows Ding.wav'
+]
+background_noises_to_take = [
+    'noise_30.wav',
+    'noise_43.wav',
+    'noise_87.wav',
+    'noise_244.wav',
+    'noise_230.wav'
+]
+
+room_to_samples = defaultdict(int)
+
+os.makedirs("output", exist_ok=True)
+
+# total = len(windows_wavs) * len(rir_wavs) * len(noise_wavs)
+total = len(rir_wavs) * len(windows_sounds_to_take) * len(background_noises_to_take)
 
 prog = tqdm(total=total)
 
-for windows_wav_path in windows_wavs:
-    for rir_wav_path in rir_wavs:
+for rir_wav_path in rir_wavs:
+    for windows_wav_path in windows_wavs:
+        if windows_wav_path.name not in windows_sounds_to_take:
+            continue  # skip unwanted window sounds
         for noise_wav_path in noise_wavs:
-            if 'RWCP_type1_rir_circle_ane_imp030' not in rir_wav_path.stem:
-                continue  # skip this specific RIR file
+            if noise_wav_path.name not in background_noises_to_take:
+                continue  # skip unwanted background noises
             out_wav_path = f"{windows_wav_path.stem}_in_room_{rir_wav_path.stem}_with_{noise_wav_path.stem}.wav"
             # ---- load ----
             x, fs_x = sf.read(windows_wav_path)
