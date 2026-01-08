@@ -21,8 +21,9 @@ def normalize_audio(x: np.ndarray, peak: float = 0.99) -> np.ndarray:
 
 # ---- parameters ----
 target_snr_db = 30  # Signal-to-Noise Ratio in dB: higher = quieter noise
-random_inject = False  # If True: inject signal randomly in noise; If False: signal starts at beginning
-min_start_time = 0.4  # Minimum time (in seconds) from start before signal can appear (only for random_inject)
+random_inject = True  # If True: inject signal randomly in noise; If False: signal starts at beginning
+min_start_time = 0.0  # Minimum time (in seconds) from start before signal can appear (only for random_inject)
+time_before_after = 2.0  # Time (in seconds) to keep before and after the interesting sound (windows sound + RIR)
 
 # ---- paths ----
 windows_wavs = list(Path("data/sounds").glob("*.wav"))
@@ -86,8 +87,10 @@ for rir_wav_path in rir_wavs:
                 h = h[idx0:]
 
             # ---- convolve (this is the paper’s core step: x_r[t] = x[t] * h_s[t]) ----
-            y = fftconvolve(x, h, mode="full")
-            # ---- add background noise ----
+            y = fftconvolve(x, h, mode="full")            
+            # Store the length of the interesting sound (windows sound + RIR)
+            interesting_sound_length = len(y)
+                        # ---- add background noise ----
             # Load noise file
             noise, fs_noise = sf.read(noise_wav_path)
             noise = to_mono(np.asarray(noise, dtype=np.float64))
@@ -144,7 +147,13 @@ for rir_wav_path in rir_wavs:
                 # Create output by placing signal in noise at chosen position
                 y_full = noise * noise_scale
                 y_full[random_start:random_start + len(y)] += y
-                y = y_full
+                
+                # Cut the audio around the interesting sound with time_before_after padding
+                samples_before_after = int(time_before_after * fs_x)
+                start_cut = max(0, random_start - samples_before_after)
+                end_cut = min(len(y_full), random_start + interesting_sound_length + samples_before_after)
+                y = y_full[start_cut:end_cut]
+                
             # ---- normalize to avoid clipping ----
             y = normalize_audio(y, peak=0.99)
 
