@@ -21,6 +21,10 @@ The repository for Offensive AI course final assignment.
      - This parameter applies regardless of the `random_inject` setting
      - When `random_inject=True`, this is the minimum time before random placement
      - When `random_inject=False`, the signal starts exactly at this time
+   - `time_before_after`: Time in seconds to keep before and after the interesting sound (default: 2.0)
+     - The interesting sound is the convolved result (windows sound + RIR)
+     - Example: If windows sound is 1s, RIR is 2s (interesting sound ~3s), and `time_before_after=2`, the output will be ~7s (2 + 3 + 2)
+     - This parameter cuts the final output to focus on the region around the target sound
 
 2. Run the dataset creation script:
    ```bash
